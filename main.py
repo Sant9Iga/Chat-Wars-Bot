@@ -623,9 +623,9 @@ def parse_text(text, username, message_id):
     elif username == 'ChatWarsTradeBot' and twinkstock_enabled:
         if text.find('Твой склад с материалами') != -1:
             stock_id = message_id
-            fwd('@','PenguindrumStockBot',stock_id)
+            # fwd('@','PenguindrumStockBot',stock_id)
             twinkstock_enabled = False
-            send_msg(pref, msg_receiver, 'Сток обновлен')
+            send_msg(pref, msg_receiver, text)
 
     elif username == 'ChatWarsTradeBot' and resource_id!= '0':
         if text.find('/add_'+resource_id) != -1:
