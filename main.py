@@ -220,7 +220,7 @@ endurance = 0
 arena_running = False
 arena_delay = False
 arena_delay_day = -1
-tz = pytz.timezone('Europe/Moscow')
+tz = pytz.timezone('Europe/Kiev')
 
 @coroutine
 def work_with_message(receiver):
@@ -533,7 +533,7 @@ def parse_text(text, username, message_id):
                     curhour = datetime.now(tz).hour
                     if not arena_enabled or arena_delay or curhour > 23 or curhour < 8:
                         log('на арену тоже не нужно')
-                        if int(endurancetop) - int(endurance) >= 4:
+                        if int(endurance) == 0:
                             # минут за 35-45 до битвы имеет смысл выйти из спячки
                             sleeping = time_to_war * 60 - 60 * random.randint(35, 45)
                             log('выносливости мало, можно и подремать до боя {0} минут'.format(int(sleeping / 60)))
