@@ -642,6 +642,7 @@ def parse_text(text, username, message_id):
                     tmp_msg_receiver = msg_receiver
             else:
                 tmp_msg_receiver = msg_receiver
+            log(tmp_msg_receiver)
             fwd(pref, tmp_msg_receiver, message_id)
 
     elif username == 'ChatWarsCaptchaBot':
