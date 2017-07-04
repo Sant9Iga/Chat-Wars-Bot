@@ -129,6 +129,8 @@ orders = {
     'twilight': '🇰🇮',
     'lesnoi_fort': '🌲Лесной форт',
     'les': '🌲Лес',
+    'sea_fort': '⚓️Морской форт',
+    'coast': '🏝Побережье',
     'gorni_fort': '⛰Горный форт',
     'gora': '⛰',
     'cover': '🛡 Защита',
@@ -202,6 +204,7 @@ gold_to_left = 0
 bot_enabled = True
 arena_enabled = True
 les_enabled = True
+coast_enabled = False
 peshera_enabled = False
 corovan_enabled = True
 order_enabled = True
@@ -292,6 +295,7 @@ def read_config():
     global bot_enabled
     global arena_enabled
     global les_enabled
+    global coast_enabled
     global peshera_enabled
     global corovan_enabled
     global auto_def_enabled
@@ -305,6 +309,7 @@ def read_config():
     bot_enabled=config.getboolean(section, 'bot_enabled')
     arena_enabled=config.getboolean(section, 'arena_enabled')
     les_enabled=config.getboolean(section, 'les_enabled')
+    coast_enabled = config.getboolean(section, 'coast_enabled')
     peshera_enabled=config.getboolean(section, 'peshera_enabled')
     corovan_enabled=config.getboolean(section, 'corovan_enabled')
     auto_def_enabled=config.getboolean(section, 'auto_def_enabled')
@@ -321,6 +326,7 @@ def write_config():
     global bot_enabled
     global arena_enabled
     global les_enabled
+    global coast_enabled
     global peshera_enabled
     global corovan_enabled
     global auto_def_enabled
@@ -337,6 +343,7 @@ def write_config():
     config.set(section, 'bot_enabled', str(bot_enabled))
     config.set(section, 'arena_enabled', str(arena_enabled))
     config.set(section, 'les_enabled', str(les_enabled))
+    config.set(section, 'coast_enabled', str(coast_enabled))
     config.set(section, 'peshera_enabled', str(peshera_enabled))
     config.set(section, 'corovan_enabled', str(corovan_enabled))
     config.set(section, 'auto_def_enabled', str(auto_def_enabled))
@@ -355,6 +362,7 @@ def parse_text(text, username, message_id):
     global bot_enabled
     global arena_enabled
     global les_enabled
+    global coast_enabled
     global peshera_enabled
     global corovan_enabled
     global order_enabled
@@ -445,6 +453,12 @@ def parse_text(text, username, message_id):
             get_info_diff = random.randint(400, 500)
             endurance -= 1
 
+        elif 'Ты отправился искать приключения на  побережье' in text:
+            log("Ушли на  побережье")
+            lt_info = time()
+            get_info_diff = random.randint(400, 500)
+            endurance -= 1
+
         elif 'Ищем соперника. Пока соперник не найден' in text:
             lt_info = time()
             get_info_diff = random.randint(900, 1200)
@@ -524,6 +538,10 @@ def parse_text(text, username, message_id):
                 sleep(random.randint(3, 6))
                 log('запросили репорт по битве')
                 report = False
+            if text.find('Твой замок не контролирует побережье.') != -1 and coast_enabled:
+                log('Замок не контролирует побережье. Перенаправляю на лес')
+                coast_enabled = False
+                les_enabled = True
             if text.find('🛌Отдых') == -1 and text.find('🛡Защита ') == -1:
                 log('Чем-то занят, ждём')
             else:
@@ -559,6 +577,10 @@ def parse_text(text, username, message_id):
                 elif les_enabled and not peshera_enabled and endurance >= 1 and orders['les'] not in action_list:
                     action_list.append(orders['quests'])
                     action_list.append(orders['les'])
+
+                elif coast_enabled and not peshera_enabled and endurance >= 1 and orders['coast'] not in action_list:
+                    action_list.append(orders['quests'])
+                    action_list.append(orders['coast'])
 
                 elif arena_enabled and not arena_delay and gold >= 5 and not arena_running:
                     curhour = datetime.now(tz).hour
@@ -656,6 +678,8 @@ def parse_text(text, username, message_id):
                 update_order(orders['twilight'])
             elif text.find('🌲') != -1:
                 update_order(orders['lesnoi_fort'])
+            elif text.find('⚓') != -1:
+                update_order(orders['sea_fort'])
             elif text.find('⛰') != -1:
                 update_order(orders['gorni_fort'])
             elif text.find('🛡') != -1:
@@ -674,6 +698,8 @@ def parse_text(text, username, message_id):
                     '#disable_arena - Выключить арену',
                     '#enable_les - Включить лес',
                     '#disable_les - Выключить лес',
+                    '#enable_coast - Включить побережье',
+                    '#disable_coast - Выключить побережье',
                     '#enable_peshera - Включить пещеры',
                     '#disable_peshera - Выключить пещеры',
                     '#enable_corovan - Включить корован',
@@ -753,6 +779,16 @@ def parse_text(text, username, message_id):
                 les_enabled = False
                 write_config()
                 send_msg(pref, msg_receiver, 'Лес успешно выключен')
+
+            # Вкл/выкл леса
+            elif text == '#enable_coast':
+                coast_enabled = True
+                write_config()
+                send_msg(pref, msg_receiver, 'Побережье успешно включено')
+            elif text == '#disable_coast':
+                coast_enabled = False
+                write_config()
+                send_msg(pref, msg_receiver, 'Побережье успешно выключено')
 
             # Вкл/выкл пещеры
             elif text == '#enable_peshera':
@@ -843,6 +879,7 @@ def parse_text(text, username, message_id):
                     '📯Арена включена: {1}',
                     '🔎Сейчас на арене: {2}',
                     '🌲Лес включен: {3}',
+                    '🏝Побережье включено: {13}',
                     '🕸Пещеры включены: {4}',
                     '🐫Корованы включены: {5}',
                     '🇪🇺Приказы включены: {6}',
@@ -853,7 +890,7 @@ def parse_text(text, username, message_id):
 		    '🏘Постройка включена: {11}',
 		    '🚧Цель постройки: {12}',
                 ]).format(bot_enabled, arena_enabled, arena_running, les_enabled, peshera_enabled, corovan_enabled, order_enabled,
-                          auto_def_enabled, donate_enabled, donate_buying,orders[lvl_up],build_enabled,build_target))
+                          auto_def_enabled, donate_enabled, donate_buying,orders[lvl_up],build_enabled,build_target,coast_enabled))
 
             # Информация о герое
             elif text == '#hero':
