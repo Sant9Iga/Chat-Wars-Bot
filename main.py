@@ -634,7 +634,15 @@ def parse_text(text, username, message_id):
         elif quest_fight_enabled and text.find('/fight') != -1:
             c = re.search('(\/fight.*)', text).group(1)
             action_list.append(c)
-            fwd(pref, msg_receiver, message_id)
+            tmp_msg_receiver = ''
+            if coast_enabled:
+                if castle_name == 'black':
+                    tmp_msg_receiver = 'blackcastlebot'
+                else:
+                    tmp_msg_receiver = msg_receiver
+            else:
+                tmp_msg_receiver = msg_receiver
+            fwd(pref, tmp_msg_receiver, message_id)
 
     elif username == 'ChatWarsCaptchaBot':
         if len(text) <= 4 and text in captcha_answers.values():
