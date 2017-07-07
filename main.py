@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 # coding=utf-8
+from cgitb import reset
+
 from pytg.sender import Sender
 from pytg.receiver import Receiver
 from pytg.utils import coroutine
@@ -58,8 +60,8 @@ group_name = ''
 
 build_targed = '/build_hq'
 
-#id ресурса для трейда
-resource_id = '0'
+# id ресурса для трейда
+resource_id = '-1'
 
 baseconfig = configparser.SafeConfigParser()
 config = configparser.SafeConfigParser()
@@ -70,13 +72,13 @@ bot_user_id = ''
 # читаем базовые конфиги из файла
 baseconfig.read(fullpath + '/config.cfg')
 if baseconfig.has_section('base'):
-    castle_name=baseconfig.get('base','castle_name')
-    admin_username=baseconfig.get('base','admin_username')
-    order_usernames=baseconfig.get('base','order_usernames')
-    host=baseconfig.get('base','host')
-    port=int(baseconfig.get('base','port'))
-    socket_path=baseconfig.get('base','socket_path')
-    group_name=baseconfig.get('base','group_name')
+    castle_name = baseconfig.get('base', 'castle_name')
+    admin_username = baseconfig.get('base', 'admin_username')
+    order_usernames = baseconfig.get('base', 'order_usernames')
+    host = baseconfig.get('base', 'host')
+    port = int(baseconfig.get('base', 'port'))
+    socket_path = baseconfig.get('base', 'socket_path')
+    group_name = baseconfig.get('base', 'group_name')
 
 opts, args = getopt(sys.argv[1:], 'a:o:c:s:h:p:g:b:l:n', ['admin=', 'order=', 'castle=', 'socket=', 'host=', 'port=',
                                                           'gold=', 'buy=', 'lvlup=', 'group_name='])
@@ -103,20 +105,19 @@ for opt, arg in opts:
     elif opt in ('-n', '--group_name'):
         group_name = arg
 
-
 # сохраняем базовые параметры в файл
 
 if baseconfig.has_section('base'):
     baseconfig.remove_section('base')
 baseconfig.add_section('base')
-baseconfig.set('base','castle_name',str(castle_name))
-baseconfig.set('base','admin_username',str(admin_username))
-baseconfig.set('base','order_usernames',str(order_usernames))
-baseconfig.set('base','host',str(host))
-baseconfig.set('base','port',str(port))
-baseconfig.set('base','socket_path',str(socket_path))
-baseconfig.set('base','group_name',str(group_name))
-with open(fullpath + '/config.cfg','w+') as cfgfile:
+baseconfig.set('base', 'castle_name', str(castle_name))
+baseconfig.set('base', 'admin_username', str(admin_username))
+baseconfig.set('base', 'order_usernames', str(order_usernames))
+baseconfig.set('base', 'host', str(host))
+baseconfig.set('base', 'port', str(port))
+baseconfig.set('base', 'socket_path', str(socket_path))
+baseconfig.set('base', 'group_name', str(group_name))
+with open(fullpath + '/config.cfg', 'w+') as cfgfile:
     baseconfig.write(cfgfile)
 
 orders = {
@@ -141,6 +142,7 @@ orders = {
     'peshera': '🕸Пещера',
     'quests': '🗺 Квесты',
     'castle_menu': '🏰Замок',
+    'exchange':'⚖️Биржа',
     'lavka': '🏚Лавка',
     'snaraga': 'Снаряжение',
     'shlem': 'Шлем',
@@ -185,14 +187,14 @@ castle = orders[castle_name]
 # текущий приказ на атаку/защиту, по умолчанию всегда защита, трогать не нужно
 current_order = {'time': 0, 'order': castle}
 # задаем получателя ответов бота: админ или группа
-if group_name =='':
+if group_name == '':
     pref = '@'
     msg_receiver = admin_username
 else:
     pref = ''
     msg_receiver = group_name
 
-sender = Sender(sock=socket_path) if socket_path else Sender(host=host,port=port)
+sender = Sender(sock=socket_path) if socket_path else Sender(host=host, port=port)
 action_list = deque([])
 log_list = deque([], maxlen=30)
 lt_arena = 0
@@ -210,20 +212,27 @@ corovan_enabled = True
 order_enabled = True
 auto_def_enabled = True
 donate_enabled = False
+auto_hide_res_enabled = False
 quest_fight_enabled = True
 build_enabled = False
 build_target = '/build_hq'
 twinkstock_enabled = False
 report = False
+pick_up = False
+hide = False
 arenafight = re.search('Поединков сегодня ([0-9]+) из ([0-9]+)', 'Поединков сегодня 0 из 0')
 victory = 0
 gold = 0
 endurance = 0
-
+hero_lvl = 0
+places = 0
+res_for_hide = []
+hidden_res = []
 arena_running = False
 arena_delay = False
 arena_delay_day = -1
 tz = pytz.timezone('Europe/Kiev')
+
 
 @coroutine
 def work_with_message(receiver):
@@ -289,6 +298,7 @@ def queue_worker():
         except Exception as err:
             log('Ошибка очереди: {0}'.format(err))
 
+
 def read_config():
     global config
     global bot_user_id
@@ -305,20 +315,23 @@ def read_config():
     global quest_fight_enabled
     global build_enabled
     global build_target
-    section=str(bot_user_id)
-    bot_enabled=config.getboolean(section, 'bot_enabled')
-    arena_enabled=config.getboolean(section, 'arena_enabled')
-    les_enabled=config.getboolean(section, 'les_enabled')
+    global auto_hide_res_enabled
+    section = str(bot_user_id)
+    bot_enabled = config.getboolean(section, 'bot_enabled')
+    arena_enabled = config.getboolean(section, 'arena_enabled')
+    les_enabled = config.getboolean(section, 'les_enabled')
     coast_enabled = config.getboolean(section, 'coast_enabled')
-    peshera_enabled=config.getboolean(section, 'peshera_enabled')
-    corovan_enabled=config.getboolean(section, 'corovan_enabled')
-    auto_def_enabled=config.getboolean(section, 'auto_def_enabled')
-    donate_enabled=config.getboolean(section, 'donate_enabled')
-    donate_buying=config.getboolean(section, 'donate_buying')
-    lvl_up=config.get(section, 'lvl_up')
-    quest_fight_enabled=config.getboolean(section, 'quest_fight_enabled')
-    build_enabled=config.getboolean(section, 'build_enabled')
-    build_target=config.get(section, 'build_target')
+    peshera_enabled = config.getboolean(section, 'peshera_enabled')
+    corovan_enabled = config.getboolean(section, 'corovan_enabled')
+    auto_def_enabled = config.getboolean(section, 'auto_def_enabled')
+    auto_hide_res_enabled = config.getboolean(section, 'auto_save_res_enabled')
+    donate_enabled = config.getboolean(section, 'donate_enabled')
+    donate_buying = config.getboolean(section, 'donate_buying')
+    lvl_up = config.get(section, 'lvl_up')
+    quest_fight_enabled = config.getboolean(section, 'quest_fight_enabled')
+    build_enabled = config.getboolean(section, 'build_enabled')
+    build_target = config.get(section, 'build_target')
+
 
 def write_config():
     global config
@@ -336,7 +349,8 @@ def write_config():
     global quest_fight_enabled
     global build_enabled
     global build_target
-    section=str(bot_user_id)
+    global auto_hide_res_enabled
+    section = str(bot_user_id)
     if config.has_section(section):
         config.remove_section(section)
     config.add_section(section)
@@ -347,14 +361,16 @@ def write_config():
     config.set(section, 'peshera_enabled', str(peshera_enabled))
     config.set(section, 'corovan_enabled', str(corovan_enabled))
     config.set(section, 'auto_def_enabled', str(auto_def_enabled))
+    config.set(section, 'auto_save_res_enabled', str(auto_hide_res_enabled))
     config.set(section, 'donate_enabled', str(donate_enabled))
     config.set(section, 'donate_buying', str(donate_buying))
     config.set(section, 'lvl_up', str(lvl_up))
     config.set(section, 'quest_fight_enabled', str(quest_fight_enabled))
     config.set(section, 'build_enabled', str(build_enabled))
     config.set(section, 'build_target', str(build_target))
-    with open(fullpath + '/bot_cfg/' + str(bot_user_id) + '.cfg','w+') as configfile:
+    with open(fullpath + '/bot_cfg/' + str(bot_user_id) + '.cfg', 'w+') as configfile:
         config.write(configfile)
+
 
 def parse_text(text, username, message_id):
     global lt_arena
@@ -367,6 +383,7 @@ def parse_text(text, username, message_id):
     global corovan_enabled
     global order_enabled
     global auto_def_enabled
+    global auto_hide_res_enabled
     global donate_enabled
     global donate_buying
     global last_captcha_id
@@ -383,9 +400,15 @@ def parse_text(text, username, message_id):
     global twinkstock_enabled
     global resource_id
     global report
+    global pick_up
+    global hide
     global gold
     global inv
     global endurance
+    global hero_lvl
+    global places
+    global res_for_hide
+    global hidden_res
     global endurancetop
     global state
     global victory
@@ -410,7 +433,8 @@ def parse_text(text, username, message_id):
             fwd('@', captcha_bot, message_id)
 
         elif 'Не умничай!' in text or 'Ты долго думал, аж вспотел от напряжения' in text:
-            send_msg('@', admin_username, "Командир, у нас проблемы с капчой! #captcha " + '|'.join(captcha_answers.keys()))
+            send_msg('@', admin_username,
+                     "Командир, у нас проблемы с капчой! #captcha " + '|'.join(captcha_answers.keys()))
             bot_enabled = False
             if last_captcha_id != 0:
                 fwd('@', admin_username, message_id)
@@ -435,6 +459,17 @@ def parse_text(text, username, message_id):
             buytrade = re.search('обойдется примерно в ([0-9]+)💰', text).group(1)
             gold -= int(buytrade)
             log('Купили что-то на бирже на {0} золота'.format(buytrade))
+
+        elif 'Товары на продажу' in text and pick_up:
+            if re.search('\[Продается\] (\/rm.*)', text).group(1):
+                action_list.append(re.search('\[Продается\] (\/rm.*)', text).group(1))
+                action_list(orders['castle_menu'])
+                action_list(orders['exchange'])
+            else:
+                pick_up = False
+                send_msg(pref, msg_receiver, 'Больше нечего забирать')
+
+
 
         elif 'Ты пошел строить:' in text:
             log("Ушли строить")
@@ -489,6 +524,15 @@ def parse_text(text, username, message_id):
 
         elif text.find('Битва семи замков через') != -1:
             hero_message_id = message_id
+            hero_lvl = int(re.search('🏅Уровень: ([0-9]+)', text).group(1))
+            if 10 <= hero_lvl <= 14:
+                places = 2
+            elif 15 <= hero_lvl <= 19:
+                places = 3
+            elif 20 <= hero_lvl <= 24:
+                places = 4
+            else:
+                places = 5
             endurance = int(re.search('Выносливость: ([0-9]+)', text).group(1))
             endurancetop = int(re.search('Выносливость: ([0-9]+)/([0-9]+)', text).group(2))
             gold = int(re.search('💰(-?[0-9]+)', text).group(1))
@@ -526,6 +570,14 @@ def parse_text(text, username, message_id):
                                     action_list.append('/donate {0}'.format(gold - gold_to_left))
                                     gold -= gold_to_left
                         update_order(castle)
+                        send_msg('@', trade_bot, '/start')
+                    if auto_hide_res_enabled and res_for_hide and username == 'ChatWarsTradeBot' and len(hidden_res) < places:
+                        for id in res_for_hide[:places]:
+                            count = re.search('/add_' + id + '(\D+)(.*)', text).group(2)
+                            action_list.append('/wts_' + id + '_' + str(count) + '_1000')
+                            hidden_res.append(id)
+                        pick_up = True
+
                     return
                 else:
                     # если битва через несколько секунд
@@ -538,6 +590,10 @@ def parse_text(text, username, message_id):
                 sleep(random.randint(3, 6))
                 log('запросили репорт по битве')
                 report = False
+            if pick_up:
+                action_list.append(orders['castle_menu'])
+                action_list.append(orders['exchange'])
+
             if text.find('Твой замок не контролирует побережье.') != -1 and coast_enabled:
                 log('Замок не контролирует побережье. Перенаправляю на лес')
                 coast_enabled = False
@@ -560,7 +616,8 @@ def parse_text(text, username, message_id):
                             return
                     elif gold < 5 and endurance == 0 and time_to_war > 60:
                         sleeping = 60 * random.randint(30, 40)
-                        log('выносливости нет, денег нет, можно и подремать до боя {0} минут'.format(int(sleeping / 60)))
+                        log('выносливости нет, денег нет, можно и подремать до боя {0} минут'.format(
+                            int(sleeping / 60)))
                         lt_info = time()
                         get_info_diff = sleeping
 
@@ -610,15 +667,15 @@ def parse_text(text, username, message_id):
                         action_list.append(build_target)
 
         elif arena_enabled and text.find('выбери точку атаки и точку защиты') != -1:
-            arena_running = True #на случай, если арена запущена руками
+            arena_running = True  # на случай, если арена запущена руками
             lt_arena = time()
             lt_info = time()
             get_info_diff = random.randint(400, 500)
             attack_chosen = arena_attack[random.randint(0, 2)]
             cover_chosen = arena_cover[random.randint(0, 2)]
             log('Атака: {0}, Защита: {1}'.format(attack_chosen, cover_chosen))
-            sleep(random.randint(2,6))
-            if random.randint(0,1):
+            sleep(random.randint(2, 6))
+            if random.randint(0, 1):
                 action_list.append(attack_chosen)
                 action_list.append(cover_chosen)
             else:
@@ -655,16 +712,22 @@ def parse_text(text, username, message_id):
             twinkstock_enabled = False
             send_msg(pref, msg_receiver, text)
 
-    elif username == 'ChatWarsTradeBot' and resource_id!= '0':
-        if text.find('/add_'+resource_id) != -1:
-            count = re.search('/add_'+resource_id+'(\D+)(.*)', text).group(2)
-            send_msg('@',trade_bot,'/add_'+resource_id+' '+str(count))
-            log('Добавили '+str(count)+' шт. ресурса '+resource_id)
-            send_msg(pref, msg_receiver, 'Добавлено '+str(count)+' шт. ресурса '+resource_id)
+    elif username == 'ChatWarsTradeBot' and resource_id != '0':
+        if text.find('/add_' + resource_id) != -1:
+            count = re.search('/add_' + resource_id + '(\D+)(.*)', text).group(2)
+            send_msg('@', trade_bot, '/add_' + resource_id + ' ' + str(count))
+            log('Добавили ' + str(count) + ' шт. ресурса ' + resource_id)
+            send_msg(pref, msg_receiver, 'Добавлено ' + str(count) + ' шт. ресурса ' + resource_id)
         else:
-            log('На складе нет ресурса '+resource_id)
-            send_msg(pref, msg_receiver, 'На складе нет ресурса '+resource_id)
-        resource_id='0'
+            log('На складе нет ресурса ' + resource_id)
+            send_msg(pref, msg_receiver, 'На складе нет ресурса ' + resource_id)
+        resource_id = '-1'
+    if res_for_hide and username == 'ChatWarsTradeBot' and len(hidden_res) < places and hide:
+        for id in res_for_hide[:places]:
+            count = re.search('/add_' + id + '(\D+)(.*)', text).group(2)
+            action_list.append('/wts_' + id + '_' + str(count) + '_1000')
+            hidden_res.append(id)
+
 
     else:
         if bot_enabled and order_enabled and username in order_usernames:
@@ -714,6 +777,8 @@ def parse_text(text, username, message_id):
                     '#disable_order - Выключить приказы',
                     '#enable_auto_def - Включить авто деф',
                     '#disable_auto_def - Выключить авто деф',
+                    '#enable_auto_def - Включить авто отправку ресурсов на биржу',
+                    '#disable_auto_def - Выключить авто отправку ресурсов на биржу',
                     '#enable_donate - Включить донат',
                     '#disable_donate - Выключить донат',
                     '#enable_quest_fight - Включить битву во время квестов',
@@ -736,7 +801,11 @@ def parse_text(text, username, message_id):
                     '#disable_build - Выключить постройки',
                     '#build_target - указать цель постройки ({0})'.format(','.join(builds)),
                     '#stock - Обновить стоки',
-                    '#info - немного оперативной информации'
+                    '#info - немного оперативной информации',
+                    '#add_res_for_hide - добавить один/несколько(один код/кода через запятую) ресурсов в список для биржи перед битвой. Первый считается самым главным',
+                    '#del_res_for_hide - удалить из списка один/несколько(один код/кода через запятую) ресурсов для биржи',
+                    '#hide_res - спрятать ресурсы из списка на бирже',
+                    '#pick_up_res - забрать ресурсы с биржи'
                 ]))
 
             # отправка info
@@ -761,7 +830,7 @@ def parse_text(text, username, message_id):
             # отправка стока
             elif text == '#stock':
                 twinkstock_enabled = True
-                send_msg('@','ChatWarsTradeBot','/start')
+                send_msg('@', 'ChatWarsTradeBot', '/start')
 
             # Вкл/выкл арены
             elif text == '#enable_arena':
@@ -893,10 +962,22 @@ def parse_text(text, username, message_id):
                     '💰Донат включен: {8}',
                     '🏚Донат в лавку вместо казны: {9}',
                     '🌟Левелап: {10}',
-		    '🏘Постройка включена: {11}',
-		    '🚧Цель постройки: {12}',
-                ]).format(bot_enabled, arena_enabled, arena_running, les_enabled, peshera_enabled, corovan_enabled, order_enabled,
-                          auto_def_enabled, donate_enabled, donate_buying,orders[lvl_up],build_enabled,build_target,coast_enabled))
+                    '🏘Постройка включена: {11}',
+                    '🚧Цель постройки: {12}',
+                    '⚖️Биржа: {14}'
+                ]).format(bot_enabled, arena_enabled, arena_running, les_enabled, peshera_enabled, corovan_enabled,
+                          order_enabled,
+                          auto_def_enabled, donate_enabled, donate_buying, orders[lvl_up], build_enabled, build_target,
+                          coast_enabled, auto_hide_res_enabled))
+            # Вкл/выкл отправку ресурсов на биржу
+            elif text == '#enable_auto_hide_res':
+                auto_hide_res_enabled = True
+                write_config()
+                send_msg(pref, msg_receiver, 'Авто отправка ресурсов на биржу успешно включена')
+            elif text == '#disable_auto_hide_res':
+                auto_hide_res_enabled = False
+                write_config()
+                send_msg(pref, msg_receiver, 'Авто отправка ресурсов на биржу успешно выключена')
 
             # Информация о герое
             elif text == '#hero':
@@ -971,9 +1052,36 @@ def parse_text(text, username, message_id):
                 resource_id = text.split(' ')[1]
                 send_msg('@', trade_bot, '/start')
 
+            elif text.startswith('#add_res_for_hide'):
+                resource_id_to_add = text.split(',')
+                for id in resource_id_to_add:
+                    if id not in res_for_hide:
+                        res_for_hide.append(id)
+                        send_msg(pref, msg_receiver, 'ресурс №' + id + ' добавлен в список для биржи.')
+                    else:
+                        send_msg(pref, msg_receiver, 'ресурс №' + id + ' уже есть в списке для биржи.')
+                send_msg(pref, msg_receiver, 'вот список ресурсов: ' + ',\n'.join(res_for_hide))
+            elif text.startswith('#del_res_for_hide'):
+                resource_id_to_del = text.split(',')
+                for id in resource_id_to_del:
+                    if id in res_for_hide:
+                        res_for_hide.remove(id)
+                        send_msg(pref, msg_receiver, 'ресурс №' + id + ' удален из списка для биржи.')
+                    else:
+                        send_msg(pref, msg_receiver, 'ресурса №' + id + ' нет в списке для биржи.')
+                send_msg(pref, msg_receiver, 'вот список ресурсов: ' + ',\n'.join(res_for_hide))
+
             elif text == '#done':
                 send_msg('@', trade_bot, '/done')
                 send_msg(pref, msg_receiver, 'Предложение готово!')
+
+            elif text == '#hide_res':
+                hide = True
+                send_msg('@', trade_bot, '/start')
+            elif text == '#pick_up_res':
+                pick_up = True
+                action_list.append(orders['castle_menu'])
+                action_list.append(orders['exchange'])
 
 def send_msg(pref, to, message):
     sender.send_msg(pref + to, message)
